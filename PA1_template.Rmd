@@ -8,18 +8,132 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r setoptions,echo=TRUE}
+library(knitr)
+opts_chunk$set(echo=TRUE)
+```
+
+```{r dataload}
+setwd("C:/Soumik/Datasets/activity")
+activityData<-read.csv("activity.csv",header=TRUE,na.strings="NA")
+```
+Analysis - Total number of steps taken per day.
+
+```{r analysis1}
+totStepsPerDay<-aggregate(steps~date,activityData,sum)
+```
+Histogram of the total number of steps taken each day -
+```{r histogram, fig.height=4}
+library(ggplot2)
+qplot(totStepsPerDay$steps,geom="histogram",binwidth=500,main="Histogram of Number of Steps Taken per Day",xlab = "Steps",fill=I("blue"))
+```
 
 
 ## What is mean total number of steps taken per day?
 
+```{r mean}
+print(paste("Mean total number of steps taken per day =",mean(totStepsPerDay$steps)))
+```
 
+```{r median}
+print(paste("Median total number of steps taken per day =",median(totStepsPerDay$steps)))
+```
 
 ## What is the average daily activity pattern?
 
+A time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis) is shown below:
 
+```{r scatterplot,fig.height=4}
+avgSteps5MinInterval<-aggregate(steps~interval,activityData,mean)
+plot(avgSteps5MinInterval$interval,avgSteps5MinInterval$steps,type="l",main="Average Number of Steps Taken per 5 Minute Interval",xlab="5 Minute Interval",ylab="Average Number of Steps Taken")
+```
+
+
+
+5-Minute interval that contains maximun number of steps:
+```{r maxInterval}
+avgSteps5MinInterval[which.max(avgSteps5MinInterval$steps),]
+```
 
 ## Imputing missing values
 
+total number of missing values in the dataset (i.e. the total number of rows with NAs):
+
+```{r missing}
+totalMissingValues<-sum(is.na(activityData))
+totalMissingValues
+```
+
+Following strategy has been used for filling in all of the missing values in the dataset
+
+* The missing value has been imputed by the mean of the corresponding 5-minute interval
+* A new dataset is created after imputing the missing values
+
+```{r imputation}
+activityDataImputed<-activityData
+
+for (i in 1:nrow(activityDataImputed))
+{
+  if(is.na(activityDataImputed$steps[i]))
+  {
+    missingValue<-avgSteps5MinInterval$steps[avgSteps5MinInterval$interval==activityDataImputed$interval[i]]
+    activityDataImputed$steps[i]<-missingValue
+  }
+}
+```
+
+After imputing, the following histogram shows the total number of steps taken each day:
+
+```{r histogram_post}
+totStepsPerDay.new<-aggregate(steps~date,activityDataImputed,sum)
+```
+```{r histogram_post1,fig.height=4}
+qplot(totStepsPerDay.new$steps,geom="histogram",binwidth=500,
+      main="Histogram of Number of Steps Taken per Day (after imputing missing values)",xlab = "Steps",
+      fill=I("green"))
+```
+
+Following are the mean and median total number of steps taken per day after imputing:
+```{r mean.median}
+print(paste("Mean:",mean(totStepsPerDay.new$steps)))
+print(paste("Median:",median(totStepsPerDay.new$steps)))
+```
+
+Observations on Mean and Median:
+
+* After imputing, the mean and median are same
+* Imputation didn't affect the mean, but the median is different.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r factor}
+activityDataImputed$date<-as.Date(activityDataImputed$date,"%Y-%m-%d")
+for(k in 1:nrow(activityDataImputed))
+{
+  if((weekdays(activityDataImputed$date[k])=="Sunday") | (weekdays(activityDataImputed$date[k])=="Saturday"))
+  {
+    activityDataImputed$typeofDay[k]<-"Weekend"
+  }
+  else activityDataImputed$typeofDay[k]<-"Weekday"
+}
+```
+
+Following is a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis)-
+
+```{r panel}
+activityDataImputed<-activityDataImputed[,c(4,3,1)]
+agg.activityDataImputed<-aggregate(steps~(typeofDay+interval),activityDataImputed,mean)
+```
+```{r panel1,fig.height=4}
+qplot(interval,steps,
+      data=agg.activityDataImputed,
+      geom = "line",ylab="Average Steps Taken Per Day",xlab="Interval")+ facet_wrap(~typeofDay,ncol = 1)
+```
+
+
+
+
+## End of Analysis
